@@ -28,10 +28,10 @@ my-backend-api/
 
 ## 🚀 How to Run
 1. **Clone the repo:**
-   `git clone https://github.com`
+   `git clone `https://github.com/Siskchristopher/taskManager-backend`
 2. **Install dependencies:**
    `pip install -r requirements.txt`
 3. **Run the server:**
    `fastapi dev main.py`
 4. **Access the docs:**
-   Open `http://127.0.0` to test the API.
+   Open `http://127.0.0.1:8000/docs` to test the API.
