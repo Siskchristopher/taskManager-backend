@@ -18,6 +18,9 @@ def get_db():
     finally:
         db.close()
 
+@app.get("/")
+def read_root():
+    return{"status": "API is online"}
 # Route (POST) --> User transmitted data
 @app.post("/tasks", response_model=schemas.TaskResponse)
 def create_new_task(task_data: schemas.TaskCreate, db: Session = Depends(get_db)):
