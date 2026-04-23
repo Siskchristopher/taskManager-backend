@@ -3,6 +3,17 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional
 
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    class Config:
+        from_attributes = True
+
 # User tasks --> what user sends
 class TaskCreate(BaseModel):
     title: str

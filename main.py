@@ -3,7 +3,8 @@
 
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-import models, schemas, database
+import models, schemas, database, auth
+
 
 # Table creation
 models.base.metadata.create_all(bind=database.engine)
@@ -21,6 +22,18 @@ def get_db():
 @app.get("/")
 def read_root():
     return{"status": "API is online"}
+
+# User Registration Route
+@app.post("/users", response_model=schemas.UserResponse)
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    hashed_pwd = auth.get_password_hash(user.password)
+    db_user = models.User(username=user.username, hashed_password=hashed_pwd)
+
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
 # Route (POST) --> User transmitted data
 @app.post("/tasks", response_model=schemas.TaskResponse)
 def create_new_task(task_data: schemas.TaskCreate, db: Session = Depends(get_db)):
