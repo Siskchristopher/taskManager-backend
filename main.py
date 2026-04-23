@@ -33,6 +33,18 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_user)
     return db_user
+#
+
+@app.post("/login")
+def login(user_credentials: schemas.UserCreate, db:Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.username == user_credentials.username).first()
+
+    if not user or not auth.verify_password(user_credentials.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid Credentials")
+
+    # create Digital ID
+    access_token = auth.create_access_token(data={"sub": user.username})
+    return {'access_token': access_token, 'token_type': "bearer"}
 
 # Route (POST) --> User transmitted data
 @app.post("/tasks", response_model=schemas.TaskResponse)
