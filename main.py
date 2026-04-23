@@ -1,39 +1,36 @@
 
 # Import tools
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+import models, schemas, database
 
-from pydantic import BaseModel
-
-from typing import Optional
+# Table creation
+models.base.metadata.create_all(bind=database.engine)
 
 # Create app
 app = FastAPI()
-
-# Create Model
-class Task(BaseModel):
-    title: str
-    description: Optional[str] = None
-    is_completed: bool = False
-
-# Temporary local-memory (mimic database)
-
-database = []
-
-#  Route (GET) --> Read root
-@app.get("/")
-def readRoot():
-    return {"message": "Hello World"}
+ # Opens Connection
+def get_db():
+    db = database.session_local()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # Route (POST) --> User transmitted data
-@app.post("/tasks")
-def create_new_Task(task_data: Task):
-    database.append(task_data)
+@app.post("/tasks", response_model=schemas.TaskResponse)
+def create_new_task(task_data: schemas.TaskCreate, db: Session = Depends(get_db)):
+    new_task = models.Task(title=task_data.title, description=task_data.description)
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
 
-    return {"message": "Task Created", "task": task_data}
+    return new_task
 
 # Route (GET) --> See Tasks
 
 @app.get("/tasks")
-def get_all_Tasks():
-    return {"all_tasks": database}
+def get_all_Tasks(db: Session = Depends(get_db)):
+    tasks = db.query(models.Task).all()
+    return {"all_tasks": tasks}
