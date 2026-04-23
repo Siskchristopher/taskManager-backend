@@ -2,6 +2,7 @@
 # Import tools
 
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 import models, schemas, database, auth
 
@@ -36,10 +37,10 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 #
 
 @app.post("/login")
-def login(user_credentials: schemas.UserCreate, db:Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.username == user_credentials.username).first()
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db:Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.username == form_data.username).first()
 
-    if not user or not auth.verify_password(user_credentials.password, user.hashed_password):
+    if not user or not auth.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid Credentials")
 
     # create Digital ID
@@ -48,17 +49,36 @@ def login(user_credentials: schemas.UserCreate, db:Session = Depends(get_db)):
 
 # Route (POST) --> User transmitted data
 @app.post("/tasks", response_model=schemas.TaskResponse)
-def create_new_task(task_data: schemas.TaskCreate, db: Session = Depends(get_db)):
-    new_task = models.Task(title=task_data.title, description=task_data.description)
+def create_new_task(task_data: schemas.TaskCreate, db: Session = Depends(get_db), token: str = Depends(auth.oauth2_scheme)):
+
+    username = auth.get_current_user_from_token(token)
+    if not username:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+    user = db.query(models.User).filter(models.User.username == username).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    new_task = models.Task(title=task_data.title, description=task_data.description,owner_id=int(user.id))
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
+
+
 
     return new_task
 
 # Route (GET) --> See Tasks
 
 @app.get("/tasks")
-def get_all_Tasks(db: Session = Depends(get_db)):
-    tasks = db.query(models.Task).all()
+def get_all_Tasks(db: Session = Depends(get_db), token: str = Depends(auth.oauth2_scheme)):
+    username = auth.get_current_user_from_token(token)
+
+    if not username:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
+    user = db.query(models.User).filter(models.User.username == username).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    tasks = db.query(models.Task).filter(models.Task.owner_id == user.id).all()
     return {"all_tasks": tasks}
